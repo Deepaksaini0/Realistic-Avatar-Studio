@@ -236,12 +236,11 @@
         <div class="info">
           <strong>Get a key:</strong> sign up at <a href="https://studio.d-id.com" target="_blank">studio.d-id.com</a> → API → copy key.
           <br><br>
-          <strong>⚠ CORS / Proxy required:</strong> D-ID's API does not allow direct browser calls. You must run the included <code>proxy.php</code> on a local web server (XAMPP / WAMP / Laragon).
-          <br>
-          <strong>Setup steps:</strong>
-          <br>1. Copy <code>realistic-avatar.html</code> + <code>proxy.php</code> into your web server root, e.g. <code>C:\xampp\htdocs\video-maker\</code>
-          <br>2. Start Apache.
-          <br>3. Open <code>http://localhost/video-maker/realistic-avatar.html</code> (NOT <code>file://</code>).
+          <strong>Render deployment (recommended):</strong> set <code>DID_API_KEY</code> as an env var in your Render dashboard → leave the API key field above <em>blank</em>. The browser never touches the key.
+          <br><br>
+          <strong>Local Node:</strong> <code>npm install</code> then <code>DID_API_KEY=xxx npm start</code> → open <code>http://localhost:3000</code>. Proxy URL = <code>/api/proxy</code>.
+          <br><br>
+          <strong>Local PHP (XAMPP):</strong> drop <code>realistic-avatar.html</code> + <code>proxy.php</code> in <code>htdocs/video-maker/</code>, start Apache, open <code>http://localhost/video-maker/realistic-avatar.html</code>. Change Proxy URL above to <code>./proxy.php</code>.
         </div>
       </section>
 
@@ -382,8 +381,9 @@
 const $ = (id) => document.getElementById(id);
 const KEY_STORAGE = 'didApiKey_v1';
 const PROXY_STORAGE = 'didProxyUrl_v1';
-// Default proxy URL — same folder as this HTML file
-const DEFAULT_PROXY = './proxy.php';
+// Default proxy URL — works on Render (Node server) out of the box.
+// Change to './proxy.php' if you're running the local PHP setup instead.
+const DEFAULT_PROXY = '/api/proxy';
 function proxyUrl(path) {
   const base = (localStorage.getItem(PROXY_STORAGE) || DEFAULT_PROXY).trim();
   const sep = base.includes('?') ? '&' : '?';
@@ -482,11 +482,9 @@ async function uploadImageToDID(file) {
 
   const fd = new FormData();
   fd.append('image', cleanFile);
-  const res = await fetch(proxyUrl('images'), {
-    method: 'POST',
-    headers: { 'X-Did-Key': state.apiKey },
-    body: fd,
-  });
+  const headers = {};
+  if (state.apiKey) headers['X-Did-Key'] = state.apiKey;
+  const res = await fetch(proxyUrl('images'), { method: 'POST', headers, body: fd });
   if (!res.ok) {
     const t = await res.text();
     throw new Error(`Image upload failed (${res.status}): ${t}`);
@@ -516,15 +514,9 @@ async function createTalk({ sourceUrl, text, voiceId, voiceStyle, driver }) {
   };
   if (driver && driver !== 'auto') body.driver_url = driver;
 
-  const res = await fetch(proxyUrl('talks'), {
-    method: 'POST',
-    headers: {
-      'X-Did-Key': state.apiKey,
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
+  const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+  if (state.apiKey) headers['X-Did-Key'] = state.apiKey;
+  const res = await fetch(proxyUrl('talks'), { method: 'POST', headers, body: JSON.stringify(body) });
   if (!res.ok) {
     const t = await res.text();
     throw new Error(`Create talk failed (${res.status}): ${t}`);
@@ -534,10 +526,9 @@ async function createTalk({ sourceUrl, text, voiceId, voiceStyle, driver }) {
 
 /* ---------- Poll talk status ---------- */
 async function getTalk(id) {
-  const res = await fetch(proxyUrl(`talks/${id}`), {
-    method: 'GET',
-    headers: { 'X-Did-Key': state.apiKey, 'Accept': 'application/json' },
-  });
+  const headers = { 'Accept': 'application/json' };
+  if (state.apiKey) headers['X-Did-Key'] = state.apiKey;
+  const res = await fetch(proxyUrl(`talks/${id}`), { method: 'GET', headers });
   if (!res.ok) {
     const t = await res.text();
     throw new Error(`Get talk failed (${res.status}): ${t}`);
@@ -548,10 +539,9 @@ async function getTalk(id) {
 /* ---------- Cancel a talk (best effort) ---------- */
 async function cancelTalk(id) {
   try {
-    await fetch(proxyUrl(`talks/${id}`), {
-      method: 'DELETE',
-      headers: { 'X-Did-Key': state.apiKey },
-    });
+    const headers = {};
+    if (state.apiKey) headers['X-Did-Key'] = state.apiKey;
+    await fetch(proxyUrl(`talks/${id}`), { method: 'DELETE', headers });
   } catch(_) {}
 }
 
@@ -598,7 +588,8 @@ $('downloadBtn').addEventListener('click', () => {
 });
 
 async function generate() {
-  if (!state.apiKey) return toast('Save your D-ID API key first.', 'error');
+  // API key may be empty if the server holds DID_API_KEY as an env var (e.g. on Render).
+  // The proxy will return 401 if no key is found anywhere — handled below.
   if (!state.imageFile) return toast('Upload a face photo first.', 'error');
   const text = $('scriptText').value.trim();
   if (!text) return toast('Enter a script for the avatar to speak.', 'error');
