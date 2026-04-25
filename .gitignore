@@ -1,0 +1,8 @@
+node_modules/
+.env
+.env.local
+.DS_Store
+*.log
+
+# PHP proxy is for local XAMPP only — Render uses server.js
+proxy.php
