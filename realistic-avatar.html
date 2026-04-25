@@ -382,12 +382,23 @@ const $ = (id) => document.getElementById(id);
 const KEY_STORAGE = 'didApiKey_v1';
 const PROXY_STORAGE = 'didProxyUrl_v1';
 // Default proxy URL — works on Render (Node server) out of the box.
-// Change to './proxy.php' if you're running the local PHP setup instead.
-const DEFAULT_PROXY = '/api/proxy';
+// Change to './api/proxy.php' if you're running the local PHP setup instead.
+const DEFAULT_PROXY = '/proxy';
 function proxyUrl(path) {
   const base = (localStorage.getItem(PROXY_STORAGE) || DEFAULT_PROXY).trim();
   const sep = base.includes('?') ? '&' : '?';
   return `${base}${sep}path=${encodeURIComponent(path)}`;
+}
+// Build the URL used to download the final MP4 from D-ID's S3 (S3 has no CORS)
+function proxyFetchUrl(url) {
+  const base = (localStorage.getItem(PROXY_STORAGE) || DEFAULT_PROXY).trim();
+  if (base.endsWith('.php')) {
+    // PHP — same file with ?fetch= query
+    const sep = base.includes('?') ? '&' : '?';
+    return `${base}${sep}fetch=${encodeURIComponent(url)}`;
+  }
+  // Node — dedicated /api/fetch endpoint on same origin
+  return `/api/fetch?url=${encodeURIComponent(url)}`;
 }
 
 const state = {
@@ -437,7 +448,7 @@ async function pingProxy(url) {
 
 async function autoDetectProxy() {
   // Try PHP first (most common local setup), then Node
-  const candidates = ['./proxy.php', '/api/proxy'];
+  const candidates = ['./api/proxy.php', './proxy.php', '/proxy', '/api/proxy'];
   for (const url of candidates) {
     if (await pingProxy(url)) {
       $('proxyUrl').value = url;
@@ -660,9 +671,9 @@ async function generate() {
     setOverlay(true, 'Downloading result…', 'Almost done.');
     setProgress(90);
 
-    // 4. Fetch the MP4 as a blob so we can preview + download cleanly
-    const mp4Res = await fetch(result.result_url);
-    if (!mp4Res.ok) throw new Error('Failed to fetch result video.');
+    // 4. Fetch the MP4 as a blob via our proxy (D-ID's S3 has no CORS headers)
+    const mp4Res = await fetch(proxyFetchUrl(result.result_url));
+    if (!mp4Res.ok) throw new Error('Failed to fetch result video (proxy returned ' + mp4Res.status + ').');
     const blob = await mp4Res.blob();
     state.resultBlob = blob;
 
