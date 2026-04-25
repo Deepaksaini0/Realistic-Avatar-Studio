@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Realistic Avatar Studio — D-ID Powered</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg-1: #0a0a14;
+    --bg-2: #16162a;
+    --bg-3: #1f1f3a;
+    --accent: #00d4ff;
+    --accent-2: #ff3d8b;
+    --text: #f4f4ff;
+    --muted: #9999bb;
+    --card: rgba(255,255,255,0.05);
+    --border: rgba(255,255,255,0.1);
+    --success: #21d07a;
+    --danger: #ff5c7c;
+    --warn: #ffb627;
+  }
+  html, body {
+    height: 100%;
+    font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
+    background:
+      radial-gradient(circle at 20% 10%, rgba(0,212,255,0.15), transparent 40%),
+      radial-gradient(circle at 80% 90%, rgba(255,61,139,0.15), transparent 40%),
+      linear-gradient(135deg, var(--bg-1), var(--bg-2));
+    background-attachment: fixed;
+    color: var(--text);
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+  .app { max-width: 1280px; margin: 0 auto; padding: 24px; }
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 16px; margin-bottom: 24px;
+  }
+  .logo { display: flex; align-items: center; gap: 14px; }
+  .logo-mark {
+    width: 48px; height: 48px; border-radius: 14px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    display: grid; place-items: center; font-size: 24px;
+    box-shadow: 0 8px 28px rgba(0,212,255,0.4);
+  }
+  .logo h1 { font-size: 22px; letter-spacing: 0.3px; }
+  .logo .tag { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 999px;
+    background: rgba(0,212,255,0.12); border: 1px solid rgba(0,212,255,0.3);
+    color: var(--accent); font-size: 12px; font-weight: 600;
+  }
+
+  .grid { display: grid; grid-template-columns: 1fr 1.1fr; gap: 22px; }
+  @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--card); backdrop-filter: blur(14px);
+    border: 1px solid var(--border); border-radius: 18px;
+    padding: 22px; box-shadow: 0 12px 32px rgba(0,0,0,0.3);
+  }
+  .card h2 {
+    font-size: 13px; margin-bottom: 16px;
+    text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card h2 .num {
+    width: 22px; height: 22px; display: grid; place-items: center;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #000; border-radius: 6px; font-size: 12px; font-weight: 700;
+  }
+
+  .upload-zone {
+    border: 2px dashed var(--border); border-radius: 14px;
+    padding: 28px 16px; text-align: center; cursor: pointer;
+    transition: all 0.2s; background: rgba(0,0,0,0.2);
+  }
+  .upload-zone:hover, .upload-zone.drag {
+    border-color: var(--accent); background: rgba(0,212,255,0.08);
+  }
+  .upload-zone .icon { font-size: 38px; margin-bottom: 10px; }
+  .upload-zone p { color: var(--muted); font-size: 13px; }
+  .upload-zone img.preview { max-width: 200px; max-height: 200px; border-radius: 12px; margin-top: 12px; }
+
+  textarea, input[type="text"], input[type="password"], select, input[type="file"] {
+    width: 100%; background: rgba(0,0,0,0.3); color: var(--text);
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 11px 13px; font-size: 14px; font-family: inherit; outline: none;
+    transition: border-color 0.15s;
+  }
+  textarea { min-height: 110px; resize: vertical; }
+  textarea:focus, input:focus, select:focus { border-color: var(--accent); }
+  select option { background: #16162a; color: var(--text); }
+
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+  @media (max-width: 540px) { .row { grid-template-columns: 1fr; } }
+
+  label.field { display: block; margin-top: 12px; }
+  label.field span {
+    display: block; font-size: 11px; color: var(--muted);
+    margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px;
+  }
+
+  .pills { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pill {
+    padding: 8px 14px; border: 1px solid var(--border);
+    background: rgba(0,0,0,0.2); color: var(--muted);
+    border-radius: 999px; cursor: pointer; font-size: 13px;
+    font-weight: 600; transition: all 0.15s;
+  }
+  .pill.active { border-color: var(--accent); color: var(--text); background: rgba(0,212,255,0.18); }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 13px 22px; border: 0; border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #000; font-weight: 700; font-size: 15px; cursor: pointer;
+    box-shadow: 0 8px 22px rgba(0,212,255,0.3);
+    transition: transform 0.1s, opacity 0.2s;
+  }
+  .btn:hover:not(:disabled) { transform: translateY(-1px); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn.secondary { background: rgba(255,255,255,0.08); color: var(--text); box-shadow: none; border: 1px solid var(--border); }
+  .btn.success { background: linear-gradient(135deg, #21d07a, #11a05a); color: white; box-shadow: 0 8px 22px rgba(33,208,122,0.35); }
+  .btn.danger { background: linear-gradient(135deg, #ff5c7c, #d12a4d); color: white; }
+
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+
+  .preview-stage {
+    position: relative; background: #000; border-radius: 14px;
+    overflow: hidden; width: 100%; aspect-ratio: 1/1;
+    display: grid; place-items: center;
+  }
+  .preview-stage video, .preview-stage img.proxy {
+    width: 100%; height: 100%; object-fit: contain; background: #000; display: block;
+  }
+  .preview-stage .placeholder { color: var(--muted); text-align: center; padding: 30px; }
+  .preview-stage .placeholder .icon { font-size: 56px; margin-bottom: 14px; opacity: 0.7; }
+  .preview-stage .gen-overlay {
+    position: absolute; inset: 0; background: rgba(0,0,0,0.7);
+    display: grid; place-items: center; backdrop-filter: blur(6px);
+    padding: 20px; text-align: center;
+  }
+  .gen-overlay .spinner {
+    width: 48px; height: 48px; border-radius: 50%;
+    border: 4px solid rgba(255,255,255,0.15); border-top-color: var(--accent);
+    animation: spin 0.9s linear infinite; margin: 0 auto 14px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .progress { margin-top: 12px; background: rgba(0,0,0,0.3); border-radius: 999px; height: 8px; overflow: hidden; display: none; }
+  .progress.show { display: block; }
+  .progress .bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); width: 0%; transition: width 0.3s; }
+  .status { text-align: center; margin-top: 10px; color: var(--muted); font-size: 13px; min-height: 18px; }
+
+  .toast {
+    position: fixed; bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(120%);
+    background: rgba(20,20,40,0.97); border: 1px solid var(--border); color: var(--text);
+    padding: 12px 18px; border-radius: 10px;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.5); transition: transform 0.3s;
+    z-index: 999; font-size: 14px; max-width: 90%;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.error { border-color: var(--danger); }
+  .toast.success { border-color: var(--success); }
+
+  .hidden { display: none !important; }
+
+  .key-row { display: flex; gap: 8px; align-items: center; }
+  .key-row input { flex: 1; }
+  .key-row button { flex: 0 0 auto; padding: 11px 14px; border-radius: 10px; border: 1px solid var(--border); background: rgba(0,0,0,0.3); color: var(--text); cursor: pointer; font-size: 13px; }
+
+  .info {
+    padding: 12px 14px; background: rgba(0,212,255,0.06);
+    border: 1px solid rgba(0,212,255,0.2); border-radius: 10px;
+    font-size: 12px; color: var(--muted); margin-top: 12px; line-height: 1.6;
+  }
+  .info strong { color: var(--text); }
+  .info a { color: var(--accent); text-decoration: none; }
+  .info a:hover { text-decoration: underline; }
+
+  .warn-banner {
+    padding: 12px 16px; background: rgba(255,182,39,0.08);
+    border: 1px solid rgba(255,182,39,0.3); border-radius: 12px;
+    font-size: 13px; color: #ffd380; margin-bottom: 18px; line-height: 1.6;
+  }
+  .warn-banner strong { color: var(--warn); }
+
+  .cost-pill {
+    display: inline-block; padding: 3px 9px; border-radius: 999px;
+    background: rgba(33,208,122,0.15); color: var(--success);
+    font-size: 11px; font-weight: 600; margin-left: 6px;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">
+      <div class="logo-mark">🎭</div>
+      <div>
+        <h1>Realistic Avatar Studio</h1>
+        <div class="tag">Photoreal talking avatars · powered by D-ID API</div>
+      </div>
+    </div>
+    <span class="badge">● API Mode</span>
+  </header>
+
+  <div class="warn-banner">
+    <strong>How this works:</strong> This tool calls the <a href="https://docs.d-id.com/" target="_blank" style="color:var(--warn);">D-ID API</a> on their servers — that's where the actual photoreal video generation happens. You need an API key (free trial available at <a href="https://studio.d-id.com" target="_blank" style="color:var(--warn);">studio.d-id.com</a>). Each ~15-second clip costs roughly <strong>1–2 D-ID credits</strong> (free trial includes 14 credits).
+  </div>
+
+  <div class="grid">
+    <div>
+      <!-- API key card -->
+      <section class="card">
+        <h2><span class="num">1</span> D-ID API Key</h2>
+        <label class="field">
+          <span>Paste your API key (stored locally in your browser only)</span>
+          <div class="key-row">
+            <input type="password" id="apiKey" placeholder="Your D-ID API key…" autocomplete="off" />
+            <button id="toggleKey" type="button">👁</button>
+            <button id="saveKey" type="button">Save</button>
+          </div>
+        </label>
+        <label class="field">
+          <span>Proxy URL (PHP file that forwards to D-ID)</span>
+          <div class="key-row">
+            <input type="text" id="proxyUrl" placeholder="./proxy.php" />
+            <button id="saveProxy" type="button">Save</button>
+          </div>
+        </label>
+        <div class="info">
+          <strong>Get a key:</strong> sign up at <a href="https://studio.d-id.com" target="_blank">studio.d-id.com</a> → API → copy key.
+          <br><br>
+          <strong>⚠ CORS / Proxy required:</strong> D-ID's API does not allow direct browser calls. You must run the included <code>proxy.php</code> on a local web server (XAMPP / WAMP / Laragon).
+          <br>
+          <strong>Setup steps:</strong>
+          <br>1. Copy <code>realistic-avatar.html</code> + <code>proxy.php</code> into your web server root, e.g. <code>C:\xampp\htdocs\video-maker\</code>
+          <br>2. Start Apache.
+          <br>3. Open <code>http://localhost/video-maker/realistic-avatar.html</code> (NOT <code>file://</code>).
+        </div>
+      </section>
+
+      <!-- Input card -->
+      <section class="card" style="margin-top:18px;">
+        <h2><span class="num">2</span> Upload Face Photo</h2>
+        <div class="upload-zone" id="dropZone">
+          <div class="icon">👤</div>
+          <strong>Click or drop a portrait photo</strong>
+          <p>Front-facing, good lighting, one face only · JPG/PNG</p>
+          <img class="preview hidden" id="imgPreview" alt="preview" />
+        </div>
+        <input type="file" id="fileInput" accept="image/*" class="hidden" />
+        <div class="info">
+          For best results: clear face, neutral expression, plain background, eyes visible. D-ID will animate this exact face.
+        </div>
+      </section>
+
+      <!-- Script card -->
+      <section class="card" style="margin-top:18px;">
+        <h2><span class="num">3</span> Script & Voice</h2>
+        <label class="field">
+          <span>What should the avatar say? <span class="cost-pill">~30–40 words ≈ 15s</span></span>
+          <textarea id="scriptText" placeholder="Welcome to our digital marketing agency. We help businesses grow online with powerful SEO strategies."></textarea>
+        </label>
+
+        <div class="row">
+          <label class="field">
+            <span>Voice / Accent</span>
+            <select id="voiceSelect">
+              <optgroup label="English (US)">
+                <option value="en-US-JennyNeural">Jenny — Female, US</option>
+                <option value="en-US-AriaNeural">Aria — Female, US</option>
+                <option value="en-US-GuyNeural">Guy — Male, US</option>
+                <option value="en-US-DavisNeural">Davis — Male, US</option>
+              </optgroup>
+              <optgroup label="English (UK)">
+                <option value="en-GB-SoniaNeural">Sonia — Female, UK</option>
+                <option value="en-GB-RyanNeural">Ryan — Male, UK</option>
+              </optgroup>
+              <optgroup label="English (India)">
+                <option value="en-IN-NeerjaNeural">Neerja — Female, IN</option>
+                <option value="en-IN-PrabhatNeural">Prabhat — Male, IN</option>
+              </optgroup>
+              <optgroup label="Hindi (India)">
+                <option value="hi-IN-SwaraNeural">Swara — Female, Hindi</option>
+                <option value="hi-IN-MadhurNeural">Madhur — Male, Hindi</option>
+              </optgroup>
+              <optgroup label="Other">
+                <option value="es-ES-ElviraNeural">Elvira — Female, Spanish</option>
+                <option value="fr-FR-DeniseNeural">Denise — Female, French</option>
+                <option value="de-DE-KatjaNeural">Katja — Female, German</option>
+                <option value="ar-SA-ZariyahNeural">Zariyah — Female, Arabic</option>
+              </optgroup>
+            </select>
+          </label>
+          <label class="field">
+            <span>Voice Style (Emotion)</span>
+            <select id="voiceStyle">
+              <option value="">Default (neutral)</option>
+              <option value="cheerful">Cheerful</option>
+              <option value="friendly">Friendly</option>
+              <option value="professional">Professional</option>
+              <option value="excited">Excited</option>
+              <option value="calm">Calm</option>
+              <option value="empathetic">Empathetic</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="row">
+          <label class="field">
+            <span>Driver Quality</span>
+            <select id="driverQuality">
+              <option value="auto">Auto (recommended)</option>
+              <option value="bank://lively/">Lively (more motion)</option>
+              <option value="bank://natural/">Natural (subtle motion)</option>
+              <option value="bank://subtle/">Subtle (minimal motion)</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Watermark / Logo Text (overlay)</span>
+            <input type="text" id="watermark" placeholder="Your brand (optional)" />
+          </label>
+        </div>
+
+        <div class="actions">
+          <button class="btn" id="generateBtn">⚡ Generate Realistic Avatar Video</button>
+        </div>
+        <div class="progress" id="progress"><div class="bar" id="progressBar"></div></div>
+        <div class="status" id="status"></div>
+      </section>
+    </div>
+
+    <div>
+      <!-- Preview card -->
+      <section class="card">
+        <h2><span class="num">4</span> Preview & Download</h2>
+        <div class="preview-stage" id="stage">
+          <div class="placeholder" id="placeholder">
+            <div class="icon">🎬</div>
+            <div><strong>Your photoreal talking avatar will appear here</strong></div>
+            <p style="font-size:13px;margin-top:8px;">Generation typically takes <strong>20–60 seconds</strong> on D-ID's servers.</p>
+          </div>
+          <video id="videoOut" class="hidden" controls playsinline></video>
+          <div class="gen-overlay hidden" id="genOverlay">
+            <div>
+              <div class="spinner"></div>
+              <div id="genStatus" style="font-weight:600; margin-bottom:6px;">Sending to D-ID…</div>
+              <div id="genHint" style="color:var(--muted); font-size:13px;">This usually takes 20–60s.</div>
+            </div>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn success" id="downloadBtn" disabled>⬇ Download MP4</button>
+          <button class="btn secondary" id="replayBtn" disabled>▶ Replay</button>
+          <button class="btn danger" id="cancelBtn" disabled>✕ Cancel</button>
+        </div>
+
+        <div class="info" style="margin-top:18px;">
+          <strong>What D-ID delivers:</strong> A photoreal MP4 of your uploaded face speaking the script with realistic lip-sync, blinking, micro-expressions, and subtle head motion. Output is 512×512 by default; higher resolutions need a paid D-ID plan.
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <footer style="margin-top:28px;text-align:center;color:var(--muted);font-size:12px;">
+    Frontend: HTML/JS · Generation: D-ID Talks API · No data stored on this server (there is no server)
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   Realistic Avatar Studio — D-ID API integration
+   ============================================================ */
+const $ = (id) => document.getElementById(id);
+const KEY_STORAGE = 'didApiKey_v1';
+const PROXY_STORAGE = 'didProxyUrl_v1';
+// Default proxy URL — same folder as this HTML file
+const DEFAULT_PROXY = './proxy.php';
+function proxyUrl(path) {
+  const base = (localStorage.getItem(PROXY_STORAGE) || DEFAULT_PROXY).trim();
+  const sep = base.includes('?') ? '&' : '?';
+  return `${base}${sep}path=${encodeURIComponent(path)}`;
+}
+
+const state = {
+  apiKey: '',
+  imageFile: null,
+  imageDataUrl: null,
+  generating: false,
+  pollTimer: null,
+  currentTalkId: null,
+  resultBlob: null,
+};
+
+/* ---------- Toast ---------- */
+function toast(msg, type = '') {
+  const el = $('toast');
+  el.className = 'toast show ' + type;
+  el.textContent = msg;
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.className = 'toast', 4000);
+}
+
+/* ---------- API key handling ---------- */
+function loadKey() {
+  const saved = localStorage.getItem(KEY_STORAGE);
+  if (saved) {
+    state.apiKey = saved;
+    $('apiKey').value = saved;
+  }
+  const savedProxy = localStorage.getItem(PROXY_STORAGE) || DEFAULT_PROXY;
+  $('proxyUrl').value = savedProxy;
+}
+$('saveKey').addEventListener('click', () => {
+  const k = $('apiKey').value.trim();
+  if (!k) return toast('Enter an API key first.', 'error');
+  state.apiKey = k;
+  localStorage.setItem(KEY_STORAGE, k);
+  toast('API key saved to your browser.', 'success');
+});
+$('saveProxy').addEventListener('click', () => {
+  const p = $('proxyUrl').value.trim() || DEFAULT_PROXY;
+  localStorage.setItem(PROXY_STORAGE, p);
+  toast('Proxy URL saved: ' + p, 'success');
+});
+$('toggleKey').addEventListener('click', () => {
+  const inp = $('apiKey');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+});
+loadKey();
+
+/* ---------- Image upload ---------- */
+const dropZone = $('dropZone');
+const fileInput = $('fileInput');
+dropZone.addEventListener('click', () => fileInput.click());
+['dragover','dragenter'].forEach(ev => dropZone.addEventListener(ev, e => { e.preventDefault(); dropZone.classList.add('drag'); }));
+['dragleave','drop'].forEach(ev => dropZone.addEventListener(ev, e => { e.preventDefault(); dropZone.classList.remove('drag'); }));
+dropZone.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) handleFile(f); });
+fileInput.addEventListener('change', e => { const f = e.target.files[0]; if (f) handleFile(f); });
+
+function handleFile(file) {
+  if (!file.type.startsWith('image/')) return toast('Please choose an image.', 'error');
+  if (file.size > 10 * 1024 * 1024) return toast('Image too large (max 10 MB).', 'error');
+  state.imageFile = file;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    state.imageDataUrl = ev.target.result;
+    const prev = $('imgPreview');
+    prev.src = ev.target.result;
+    prev.classList.remove('hidden');
+  };
+  reader.readAsDataURL(file);
+}
+
+/* ---------- Sanitize filename for D-ID (no spaces, no special chars) ---------- */
+function sanitizeFilename(name) {
+  const dot = name.lastIndexOf('.');
+  const base = dot > 0 ? name.slice(0, dot) : name;
+  const ext  = dot > 0 ? name.slice(dot)    : '.jpg';
+  const cleanBase = base
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')   // anything non-alphanumeric → dash
+    .replace(/^-+|-+$/g, '')        // trim leading/trailing dashes
+    .slice(0, 40) || 'photo';
+  const cleanExt = ext.toLowerCase().replace(/[^a-z0-9.]/g, '');
+  return `${cleanBase}-${Date.now()}${cleanExt}`;
+}
+
+/* ---------- Upload image to D-ID, get hosted URL ---------- */
+async function uploadImageToDID(file) {
+  // D-ID rejects filenames with spaces / special chars — wrap in a fresh File with a clean name
+  const cleanName = sanitizeFilename(file.name || 'photo.jpg');
+  const cleanFile = new File([file], cleanName, { type: file.type || 'image/jpeg' });
+
+  const fd = new FormData();
+  fd.append('image', cleanFile);
+  const res = await fetch(proxyUrl('images'), {
+    method: 'POST',
+    headers: { 'X-Did-Key': state.apiKey },
+    body: fd,
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(`Image upload failed (${res.status}): ${t}`);
+  }
+  const data = await res.json();
+  return data.url;
+}
+
+/* ---------- Create a Talk job ---------- */
+async function createTalk({ sourceUrl, text, voiceId, voiceStyle, driver }) {
+  const body = {
+    source_url: sourceUrl,
+    script: {
+      type: 'text',
+      input: text,
+      provider: {
+        type: 'microsoft',
+        voice_id: voiceId,
+        ...(voiceStyle ? { voice_config: { style: voiceStyle } } : {}),
+      },
+    },
+    config: {
+      fluent: true,
+      pad_audio: 0.0,
+      stitch: true,
+    },
+  };
+  if (driver && driver !== 'auto') body.driver_url = driver;
+
+  const res = await fetch(proxyUrl('talks'), {
+    method: 'POST',
+    headers: {
+      'X-Did-Key': state.apiKey,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(`Create talk failed (${res.status}): ${t}`);
+  }
+  return res.json();
+}
+
+/* ---------- Poll talk status ---------- */
+async function getTalk(id) {
+  const res = await fetch(proxyUrl(`talks/${id}`), {
+    method: 'GET',
+    headers: { 'X-Did-Key': state.apiKey, 'Accept': 'application/json' },
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(`Get talk failed (${res.status}): ${t}`);
+  }
+  return res.json();
+}
+
+/* ---------- Cancel a talk (best effort) ---------- */
+async function cancelTalk(id) {
+  try {
+    await fetch(proxyUrl(`talks/${id}`), {
+      method: 'DELETE',
+      headers: { 'X-Did-Key': state.apiKey },
+    });
+  } catch(_) {}
+}
+
+/* ---------- UI: progress + overlay ---------- */
+function setOverlay(visible, status, hint) {
+  $('genOverlay').classList.toggle('hidden', !visible);
+  if (status) $('genStatus').textContent = status;
+  if (hint) $('genHint').textContent = hint;
+}
+function setProgress(pct) {
+  $('progress').classList.add('show');
+  $('progressBar').style.width = pct + '%';
+}
+function clearProgress() {
+  $('progress').classList.remove('show');
+  $('progressBar').style.width = '0%';
+  $('status').textContent = '';
+}
+
+/* ---------- Main flow ---------- */
+$('generateBtn').addEventListener('click', generate);
+$('cancelBtn').addEventListener('click', () => {
+  if (state.currentTalkId) cancelTalk(state.currentTalkId);
+  if (state.pollTimer) clearTimeout(state.pollTimer);
+  state.generating = false;
+  state.currentTalkId = null;
+  setOverlay(false);
+  clearProgress();
+  $('generateBtn').disabled = false;
+  $('cancelBtn').disabled = true;
+  toast('Generation cancelled.', 'error');
+});
+$('replayBtn').addEventListener('click', () => {
+  const v = $('videoOut');
+  v.currentTime = 0; v.play().catch(() => {});
+});
+$('downloadBtn').addEventListener('click', () => {
+  if (!state.resultBlob) return;
+  const a = document.createElement('a');
+  const ts = new Date().toISOString().replace(/[:.]/g, '-');
+  a.href = URL.createObjectURL(state.resultBlob);
+  a.download = `avatar-${ts}.mp4`;
+  document.body.appendChild(a); a.click(); a.remove();
+});
+
+async function generate() {
+  if (!state.apiKey) return toast('Save your D-ID API key first.', 'error');
+  if (!state.imageFile) return toast('Upload a face photo first.', 'error');
+  const text = $('scriptText').value.trim();
+  if (!text) return toast('Enter a script for the avatar to speak.', 'error');
+  if (text.length > 500) return toast('Script too long (max 500 chars for free tier).', 'error');
+
+  state.generating = true;
+  state.resultBlob = null;
+  $('generateBtn').disabled = true;
+  $('cancelBtn').disabled = false;
+  $('downloadBtn').disabled = true;
+  $('replayBtn').disabled = true;
+  $('placeholder').classList.add('hidden');
+  $('videoOut').classList.add('hidden');
+  setOverlay(true, 'Uploading photo to D-ID…', 'Step 1 of 3');
+  setProgress(15);
+
+  try {
+    // 1. Upload image
+    const sourceUrl = await uploadImageToDID(state.imageFile);
+    if (!state.generating) return;
+    setOverlay(true, 'Submitting talk request…', 'Step 2 of 3');
+    setProgress(35);
+
+    // 2. Create talk
+    const voiceId = $('voiceSelect').value;
+    const voiceStyle = $('voiceStyle').value;
+    const driver = $('driverQuality').value;
+    const created = await createTalk({ sourceUrl, text, voiceId, voiceStyle, driver });
+    state.currentTalkId = created.id;
+    if (!state.generating) return;
+    setOverlay(true, 'D-ID is generating your video…', 'This usually takes 20–60 seconds. Don\'t close this tab.');
+    setProgress(50);
+
+    // 3. Poll
+    const result = await pollUntilDone(created.id);
+    if (!state.generating) return;
+    setOverlay(true, 'Downloading result…', 'Almost done.');
+    setProgress(90);
+
+    // 4. Fetch the MP4 as a blob so we can preview + download cleanly
+    const mp4Res = await fetch(result.result_url);
+    if (!mp4Res.ok) throw new Error('Failed to fetch result video.');
+    const blob = await mp4Res.blob();
+    state.resultBlob = blob;
+
+    const url = URL.createObjectURL(blob);
+    const v = $('videoOut');
+    v.src = url; v.load();
+    v.classList.remove('hidden');
+    setOverlay(false);
+    setProgress(100);
+    $('status').textContent = `Done · ${(blob.size / 1024 / 1024).toFixed(2)} MB · click ▶ to play`;
+    $('downloadBtn').disabled = false;
+    $('replayBtn').disabled = false;
+    $('cancelBtn').disabled = true;
+    $('generateBtn').disabled = false;
+    state.generating = false;
+    state.currentTalkId = null;
+    toast('Avatar video ready!', 'success');
+
+  } catch (err) {
+    console.error(err);
+    setOverlay(false);
+    clearProgress();
+    $('placeholder').classList.remove('hidden');
+    $('generateBtn').disabled = false;
+    $('cancelBtn').disabled = true;
+    state.generating = false;
+    state.currentTalkId = null;
+
+    const msg = err.message || String(err);
+    const isFile = location.protocol === 'file:';
+    const proxyFull = (localStorage.getItem(PROXY_STORAGE) || DEFAULT_PROXY);
+
+    // Friendly diagnostics
+    if (isFile) {
+      toast('You opened this as file:// — PHP needs a web server. Open via http://localhost/... instead.', 'error');
+    } else if (/Failed to fetch|NetworkError|TypeError/i.test(msg)) {
+      toast(`Cannot reach proxy at "${proxyFull}". Is Apache running? Is proxy.php in the same folder?`, 'error');
+    } else if (/404/i.test(msg)) {
+      toast(`Proxy returned 404. Check that ${proxyFull} exists and is accessible.`, 'error');
+    } else if (/401|unauthorized/i.test(msg)) {
+      toast('Invalid API key (401). Re-check and re-save your key.', 'error');
+    } else if (/402|payment|credits/i.test(msg)) {
+      toast('Out of D-ID credits. Top up at studio.d-id.com.', 'error');
+    } else {
+      toast('Generation failed: ' + msg, 'error');
+    }
+    console.error('[avatar studio] full error:', err);
+  }
+}
+
+/* Poll the talk endpoint until status === 'done' (or error/rejected) */
+function pollUntilDone(id) {
+  return new Promise((resolve, reject) => {
+    const startedAt = Date.now();
+    const maxMs = 5 * 60 * 1000;  // 5 min hard cap
+    let progress = 50;
+
+    const tick = async () => {
+      if (!state.generating) return reject(new Error('Cancelled'));
+      if (Date.now() - startedAt > maxMs) return reject(new Error('Generation timed out (5 min).'));
+      try {
+        const data = await getTalk(id);
+        if (data.status === 'done' && data.result_url) {
+          return resolve(data);
+        }
+        if (data.status === 'error' || data.status === 'rejected') {
+          return reject(new Error('D-ID returned status: ' + data.status + (data.error ? ` — ${JSON.stringify(data.error)}` : '')));
+        }
+        // Still 'created' or 'started' → keep polling
+        progress = Math.min(85, progress + 4);
+        setProgress(progress);
+        $('genHint').textContent = `Status: ${data.status}…`;
+        state.pollTimer = setTimeout(tick, 2500);
+      } catch (e) {
+        reject(e);
+      }
+    };
+    tick();
+  });
+}
+</script>
+</body>
+</html>
