@@ -416,8 +416,39 @@ function loadKey() {
     state.apiKey = saved;
     $('apiKey').value = saved;
   }
-  const savedProxy = localStorage.getItem(PROXY_STORAGE) || DEFAULT_PROXY;
-  $('proxyUrl').value = savedProxy;
+  const savedProxy = localStorage.getItem(PROXY_STORAGE);
+  $('proxyUrl').value = savedProxy || DEFAULT_PROXY;
+  // If the user hasn't explicitly chosen one, auto-detect which proxy is live.
+  if (!savedProxy) autoDetectProxy();
+}
+
+/* ---------- Auto-detect which proxy is reachable (PHP vs Node) ---------- */
+async function pingProxy(url) {
+  try {
+    // Hit the endpoint with no params — a working proxy returns 400 JSON
+    // ("Missing/invalid path"), a missing endpoint returns 404 or HTML.
+    const res = await fetch(url, { method: 'GET', cache: 'no-store' });
+    if (res.status === 404) return false;
+    const text = await res.text();
+    // Real proxy responds with our JSON error format
+    return text.trim().startsWith('{') && /error|Missing|Invalid/i.test(text);
+  } catch (e) { return false; }
+}
+
+async function autoDetectProxy() {
+  // Try PHP first (most common local setup), then Node
+  const candidates = ['./proxy.php', '/api/proxy'];
+  for (const url of candidates) {
+    if (await pingProxy(url)) {
+      $('proxyUrl').value = url;
+      localStorage.setItem(PROXY_STORAGE, url);
+      const which = url.endsWith('.php') ? 'PHP (proxy.php)' : 'Node (/api/proxy)';
+      toast(`Proxy detected: ${which}`, 'success');
+      return;
+    }
+  }
+  // Neither worked — leave default and warn
+  toast('No proxy detected. See setup instructions in section 1.', 'error');
 }
 $('saveKey').addEventListener('click', () => {
   const k = $('apiKey').value.trim();
@@ -666,11 +697,15 @@ async function generate() {
 
     // Friendly diagnostics
     if (isFile) {
-      toast('You opened this as file:// — PHP needs a web server. Open via http://localhost/... instead.', 'error');
+      toast('You opened this as file:// — open via http://localhost/... instead.', 'error');
     } else if (/Failed to fetch|NetworkError|TypeError/i.test(msg)) {
-      toast(`Cannot reach proxy at "${proxyFull}". Is Apache running? Is proxy.php in the same folder?`, 'error');
+      const isPhp = proxyFull.endsWith('.php');
+      const hint = isPhp
+        ? 'Apache may not be running, or proxy.php is in the wrong folder.'
+        : 'Node server may not be running. Try `npm start` or set Proxy URL to ./proxy.php.';
+      toast(`Cannot reach proxy at "${proxyFull}". ${hint}`, 'error');
     } else if (/404/i.test(msg)) {
-      toast(`Proxy returned 404. Check that ${proxyFull} exists and is accessible.`, 'error');
+      toast(`Proxy returned 404 at "${proxyFull}". File missing or wrong URL.`, 'error');
     } else if (/401|unauthorized/i.test(msg)) {
       toast('Invalid API key (401). Re-check and re-save your key.', 'error');
     } else if (/402|payment|credits/i.test(msg)) {
