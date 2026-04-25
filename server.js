@@ -11,13 +11,13 @@
  *   DID_API_KEY=your_key npm start
  */
 
-const express  = require('express');
-const multer   = require('multer');
+const express = require('express');
+const multer = require('multer');
 const FormData = require('form-data');
-const fetch    = require('node-fetch');
-const path     = require('path');
+const fetch = require('node-fetch');
+const path = require('path');
 
-const app  = express();
+const app = express();
 const PORT = process.env.PORT || 3000;
 const D_ID_BASE = 'https://api.d-id.com';
 
@@ -36,7 +36,7 @@ app.use((req, res, next) => {
 /* ---------- Multer for image uploads (in memory) ---------- */
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits:  { fileSize: 15 * 1024 * 1024 }, // 15 MB
+  limits: { fileSize: 15 * 1024 * 1024 }, // 15 MB
 });
 
 /* ---------- Helpers ---------- */
@@ -57,7 +57,7 @@ function conditionalParser(req, res, next) {
 }
 
 /* ---------- The proxy endpoint ---------- */
-app.all('/api/proxy', conditionalParser, async (req, res) => {
+app.all('/proxy', conditionalParser, async (req, res) => {
   const apiKey = getApiKey(req);
   if (!apiKey) {
     return res.status(401).json({
@@ -82,8 +82,8 @@ app.all('/api/proxy', conditionalParser, async (req, res) => {
       // Multipart upload (image)
       const fd = new FormData();
       fd.append('image', req.file.buffer, {
-        filename:    req.file.originalname || 'photo.jpg',
-        contentType: req.file.mimetype     || 'image/jpeg',
+        filename: req.file.originalname || 'photo.jpg',
+        contentType: req.file.mimetype || 'image/jpeg',
       });
       Object.assign(headers, fd.getHeaders());
       body = fd;
@@ -96,7 +96,7 @@ app.all('/api/proxy', conditionalParser, async (req, res) => {
 
   try {
     const upstream = await fetch(url, {
-      method:  req.method,
+      method: req.method,
       headers,
       body,
     });
@@ -107,6 +107,29 @@ app.all('/api/proxy', conditionalParser, async (req, res) => {
   } catch (err) {
     console.error('Upstream error:', err);
     res.status(502).json({ error: 'Upstream request failed', detail: err.message });
+  }
+});
+
+/* ---------- Result-video proxy (D-ID's S3 has no CORS) ---------- */
+// Strict whitelist: only D-ID's own S3 buckets. Prevents open-proxy abuse.
+const ALLOWED_DOWNLOAD = /^https:\/\/d-id[a-z0-9.\-_]*\.s3[.\-][a-z0-9\-]+\.amazonaws\.com\//i;
+
+app.get('/api/fetch', async (req, res) => {
+  const url = (req.query.url || '').toString();
+  if (!url) return res.status(400).send('Missing url parameter');
+  if (!ALLOWED_DOWNLOAD.test(url)) return res.status(403).send('URL not in whitelist');
+
+  try {
+    const upstream = await fetch(url);
+    if (!upstream.ok) return res.status(upstream.status).send('Upstream failed');
+    res.set('Content-Type', upstream.headers.get('content-type') || 'video/mp4');
+    const len = upstream.headers.get('content-length');
+    if (len) res.set('Content-Length', len);
+    res.set('Cache-Control', 'no-store');
+    upstream.body.pipe(res);
+  } catch (err) {
+    console.error('Download proxy error:', err);
+    res.status(502).send('Fetch failed: ' + err.message);
   }
 });
 
