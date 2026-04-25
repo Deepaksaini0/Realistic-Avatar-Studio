@@ -1,0 +1,119 @@
+<?php
+/**
+ * proxy.php — D-ID API proxy for browser-side calls.
+ *
+ * Why: D-ID's API does not send CORS headers, so the browser blocks direct
+ * fetch() calls from realistic-avatar.html. This proxy runs on your local
+ * web server (XAMPP/WAMP/Laragon) and forwards requests to D-ID with the
+ * proper Authorization header.
+ *
+ * Setup:
+ *   1. Copy this file + realistic-avatar.html into your web server root,
+ *      e.g. C:\xampp\htdocs\video-maker\
+ *   2. Start Apache.
+ *   3. Open http://localhost/video-maker/realistic-avatar.html
+ *
+ * Auth: the API key comes from the browser as the X-Did-Key header
+ * (read from localStorage in the page). For a more secure deployment,
+ * set DID_API_KEY as an environment variable instead and remove the
+ * key from the browser entirely.
+ */
+
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, X-Did-Key');
+header('Access-Control-Max-Age: 86400');
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(204);
+    exit;
+}
+
+/* --- 1. Resolve the API key (header takes priority, env as fallback) --- */
+$apiKey = '';
+if (function_exists('getallheaders')) {
+    foreach (getallheaders() as $name => $value) {
+        if (strtolower($name) === 'x-did-key') { $apiKey = trim($value); break; }
+    }
+}
+if ($apiKey === '' && isset($_SERVER['HTTP_X_DID_KEY'])) {
+    $apiKey = trim($_SERVER['HTTP_X_DID_KEY']);
+}
+if ($apiKey === '') $apiKey = getenv('DID_API_KEY') ?: '';
+
+if ($apiKey === '') {
+    http_response_code(401);
+    header('Content-Type: application/json');
+    echo json_encode(['error' => 'Missing API key. Send X-Did-Key header or set DID_API_KEY env var.']);
+    exit;
+}
+
+/* --- 2. Resolve the upstream path, e.g. ?path=images or ?path=talks/abc123 --- */
+$path = isset($_GET['path']) ? $_GET['path'] : '';
+if ($path === '' || !preg_match('#^[A-Za-z0-9/_\-\.]+$#', $path)) {
+    http_response_code(400);
+    header('Content-Type: application/json');
+    echo json_encode(['error' => 'Missing or invalid ?path parameter.']);
+    exit;
+}
+
+$url    = 'https://api.d-id.com/' . ltrim($path, '/');
+$method = $_SERVER['REQUEST_METHOD'];
+
+/* --- 3. Build the upstream request --- */
+$ch = curl_init($url);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+curl_setopt($ch, CURLOPT_TIMEOUT, 120);
+curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+
+$headers = [
+    'Authorization: Basic ' . base64_encode($apiKey . ':'),
+    'Accept: application/json',
+];
+
+if (in_array($method, ['POST', 'PUT', 'PATCH'])) {
+    $ct = isset($_SERVER['CONTENT_TYPE']) ? $_SERVER['CONTENT_TYPE'] : '';
+
+    if (stripos($ct, 'multipart/form-data') !== false) {
+        // Multipart upload (image)
+        $postFields = [];
+        if (!empty($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+            $f = $_FILES['image'];
+            $postFields['image'] = new CURLFile(
+                $f['tmp_name'],
+                $f['type'] ?: 'image/jpeg',
+                $f['name'] ?: 'photo.jpg'
+            );
+        }
+        foreach ($_POST as $k => $v) { $postFields[$k] = $v; }
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $postFields);
+        // Don't manually set Content-Type — curl handles the multipart boundary
+    } else {
+        // JSON body
+        $body = file_get_contents('php://input');
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+        $headers[] = 'Content-Type: application/json';
+    }
+}
+
+curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+
+/* --- 4. Execute and forward the response --- */
+$response = curl_exec($ch);
+if ($response === false) {
+    $err = curl_error($ch);
+    curl_close($ch);
+    http_response_code(502);
+    header('Content-Type: application/json');
+    echo json_encode(['error' => 'Upstream request failed', 'detail' => $err]);
+    exit;
+}
+
+$httpCode    = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+$contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE) ?: 'application/json';
+curl_close($ch);
+
+http_response_code($httpCode);
+header('Content-Type: ' . $contentType);
+echo $response;
