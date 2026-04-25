@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: realistic-avatar-studio
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: DID_API_KEY
+        sync: false   # set this manually in the Render dashboard (don't commit your key)
